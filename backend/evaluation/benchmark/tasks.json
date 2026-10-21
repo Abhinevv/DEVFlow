@@ -1,0 +1,20 @@
+[
+  {
+    "id": "notes_api",
+    "name": "Notes API",
+    "requirements": "Build a notes REST API.\n- POST /notes with JSON {title, body?} creates a note and returns 201 with {id, title, body, created_at}. title must be 1-200 characters, otherwise 422. body defaults to an empty string.\n- GET /notes lists notes in id order. Optional query parameter q filters notes whose title or body contains q, case-insensitively.\n- GET /notes/{id} returns one note; PUT /notes/{id} partially updates title/body; DELETE /notes/{id} returns 204.\n- Any operation on a note id that does not exist returns 404.\n- GET /health returns {\"status\": \"ok\"}.",
+    "acceptance": "notes_api"
+  },
+  {
+    "id": "todo_api",
+    "name": "Todo API with priorities",
+    "requirements": "Build a todo list REST API.\n- POST /todos with JSON {title, priority?} creates a todo and returns 201 with {id, title, priority, done}. priority is one of \"low\", \"medium\", \"high\" (default \"medium\"); any other value returns 422. title must be non-empty. done starts false.\n- GET /todos lists todos. Optional query parameter done=true|false filters by completion; optional priority filters by priority.\n- PATCH /todos/{id} accepts any of {title, priority, done} and returns the updated todo.\n- DELETE /todos/{id} returns 204.\n- GET /todos/stats returns {\"total\": n, \"done\": n, \"open\": n}.\n- Unknown ids return 404.",
+    "acceptance": "todo_api"
+  },
+  {
+    "id": "inventory_api",
+    "name": "Inventory API",
+    "requirements": "Build an inventory REST API for products.\n- POST /products with JSON {sku, name, quantity?, reorder_level?} creates a product and returns 201. sku is unique: creating a duplicate returns 409. quantity and reorder_level are integers >= 0 (default 0 and 5); negative values return 422.\n- GET /products/{sku} returns the product; unknown sku returns 404.\n- POST /products/{sku}/adjust with JSON {delta} adds delta (may be negative) to quantity and returns the product. If the result would be negative, return 400 and leave quantity unchanged.\n- GET /products/low-stock returns products whose quantity is at or below their reorder_level, ordered by sku.",
+    "acceptance": "inventory_api"
+  }
+]

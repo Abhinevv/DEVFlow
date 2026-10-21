@@ -1,0 +1,24 @@
+# Optional infrastructure for DevFlow AI.
+#   docker compose build sandbox          # builds the execution sandbox image
+#   docker compose up -d postgres         # PostgreSQL instead of the default SQLite
+# Then set DEVFLOW_DATABASE_URL=postgresql+psycopg://devflow:devflow@localhost:5432/devflow
+# and install the driver: pip install "psycopg[binary]".
+services:
+  sandbox:
+    build: ./sandbox
+    image: devflow-sandbox:latest
+    profiles: ["build"]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: devflow
+      POSTGRES_PASSWORD: devflow
+      POSTGRES_DB: devflow
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - devflow-pg:/var/lib/postgresql/data
+
+volumes:
+  devflow-pg:

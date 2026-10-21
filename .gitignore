@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# DevFlow runtime data (database, workspaces, packages, secret key)
+backend/data/
+backend/evaluation/.data/
+backend/evaluation/results/
+backend/.env
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo

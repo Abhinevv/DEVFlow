@@ -1,0 +1,17 @@
+{
+  "id": "fastapi_service",
+  "name": "Python FastAPI service",
+  "version": "1.0.0",
+  "description": "FastAPI application with SQLAlchemy persistence and pytest tests.",
+  "language": "python",
+  "approved_dependencies": ["fastapi", "starlette", "pydantic", "sqlalchemy", "httpx", "pytest", "uvicorn"],
+  "conventions": [
+    "Application code lives in the app/ package; the FastAPI instance is app.main:app.",
+    "Tests live in tests/ and run with `pytest` from the project root (pytest.ini sets pythonpath).",
+    "Tests must not need network access or write outside a temporary directory; use an in-memory SQLite database (sqlalchemy.pool.StaticPool) and FastAPI dependency overrides.",
+    "Read the database URL from the DATABASE_URL environment variable (default sqlite:///./app.db). Do not create tables at import time; create them in the FastAPI lifespan hook so tests can override the database.",
+    "Use only the approved dependencies and the Python standard library. Nothing else is installed in the sandbox.",
+    "Read configuration from environment variables with safe defaults; never hard-code secrets.",
+    "Use type hints, small functions and clear module boundaries."
+  ]
+}
