@@ -1,0 +1,61 @@
+{
+  "name": "DevFlow - new project from form",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "New DevFlow project",
+        "formDescription": "Describe the service you want. DevFlow plans it and waits for your approval before generating code.",
+        "formFields": {
+          "values": [
+            { "fieldLabel": "Name", "requiredField": true },
+            { "fieldLabel": "Requirements", "fieldType": "textarea", "requiredField": true }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8b9c0d1e-2f3a-4b4c-9d5e-6f7a8b9c0d21",
+      "name": "Project form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [0, 0],
+      "webhookId": "9c0d1e2f-3a4b-4c5d-8e6f-7a8b9c0d1e22"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/api/projects",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $json.Name, requirements: $json.Requirements }) }}",
+        "options": {}
+      },
+      "id": "0d1e2f3a-4b5c-4d6e-9f7a-8b9c0d1e2f23",
+      "name": "Create project",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:8000/api/projects/' + $json.id + '/plan' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "1e2f3a4b-5c6d-4e7f-8a9b-0c1d2e3f4a24",
+      "name": "Generate plan",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 0]
+    }
+  ],
+  "connections": {
+    "Project form": { "main": [[{ "node": "Create project", "type": "main", "index": 0 }]] },
+    "Create project": { "main": [[{ "node": "Generate plan", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

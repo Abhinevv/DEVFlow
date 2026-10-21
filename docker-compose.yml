@@ -1,9 +1,26 @@
 # Optional infrastructure for DevFlow AI.
 #   docker compose build sandbox          # builds the execution sandbox image
 #   docker compose up -d postgres         # PostgreSQL instead of the default SQLite
-# Then set DEVFLOW_DATABASE_URL=postgresql+psycopg://devflow:devflow@localhost:5432/devflow
+#   docker compose up -d n8n              # n8n automation at http://localhost:5678 (see integrations/n8n)
+# For PostgreSQL set DEVFLOW_DATABASE_URL=postgresql+psycopg://devflow:devflow@localhost:5432/devflow
 # and install the driver: pip install "psycopg[binary]".
 services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      GENERIC_TIMEZONE: Asia/Kolkata
+      TZ: Asia/Kolkata
+      # The example workflows sign and verify approval links with Node's crypto module.
+      NODE_FUNCTION_ALLOW_BUILTIN: crypto
+      N8N_RUNNERS_ENABLED: "true"
+    extra_hosts:
+      # Lets workflows reach the DevFlow API on the host at http://host.docker.internal:8000
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - n8n-data:/home/node/.n8n
+
   sandbox:
     build: ./sandbox
     image: devflow-sandbox:latest
@@ -22,3 +39,4 @@ services:
 
 volumes:
   devflow-pg:
+  n8n-data:

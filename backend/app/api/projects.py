@@ -127,6 +127,8 @@ def approve_plan(body: DecisionIn, project: Project = Depends(owned_project), us
                  db: Session = Depends(get_db), runner: WorkflowRunner = Depends(get_runner)):
     if project.status != ProjectStatus.AWAITING_APPROVAL:
         raise _conflict("There is no plan awaiting approval")
+    if body.plan_version is not None and body.plan_version != project.plan_version:
+        raise _conflict(f"Plan v{body.plan_version} was superseded by v{project.plan_version}; review the current plan")
     _record(db, project, user, "plan", "approved", body.comment)
     db.commit()
     _start(runner, runner.start_execution, project.id)

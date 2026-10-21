@@ -8,14 +8,16 @@ import hmac
 import json
 import secrets
 import time
+from datetime import UTC, datetime
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
-from app.models import Project, User
+from app.models import ApiKey, Project, User
 
 _SCRYPT = {"n": 2**14, "r": 8, "p": 1, "dklen": 32}
 _bearer = HTTPBearer(auto_error=False)
@@ -70,9 +72,35 @@ def decode_token(token: str) -> int | None:
     return int(data["sub"])
 
 
+API_KEY_PREFIX = "dfk_"
+
+
+def new_api_key() -> tuple[str, str]:
+    """Return (plaintext key, sha256 hash). The plaintext is shown to the user once and never stored."""
+    key = API_KEY_PREFIX + secrets.token_urlsafe(32)
+    return key, hash_api_key(key)
+
+
+def hash_api_key(key: str) -> str:
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+def _user_from_api_key(db: Session, key: str) -> User | None:
+    record = db.scalar(select(ApiKey).where(ApiKey.key_hash == hash_api_key(key), ApiKey.revoked_at.is_(None)))
+    if record is None:
+        return None
+    record.last_used_at = datetime.now(UTC)
+    db.commit()
+    return db.get(User, record.user_id)
+
+
 def current_user(creds: HTTPAuthorizationCredentials | None = Depends(_bearer), db: Session = Depends(get_db)) -> User:
-    user_id = decode_token(creds.credentials) if creds else None
-    user = db.get(User, user_id) if user_id else None
+    user = None
+    if creds and creds.credentials.startswith(API_KEY_PREFIX):
+        user = _user_from_api_key(db, creds.credentials)
+    elif creds:
+        user_id = decode_token(creds.credentials)
+        user = db.get(User, user_id) if user_id else None
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated", headers={"WWW-Authenticate": "Bearer"})
     return user

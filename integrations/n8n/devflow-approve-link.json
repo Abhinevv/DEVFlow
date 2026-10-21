@@ -1,0 +1,104 @@
+{
+  "name": "DevFlow - approve plan from link",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "devflow-approve",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c11",
+      "name": "Approval link opened",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "8b7a6c5d-4e3f-4a2b-9c1d-0e9f8a7b6c12"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Accepts only links signed by the notifications workflow, and only before they expire.\nconst crypto = require('crypto');\nconst SECRET = 'CHANGE-ME-link-secret'; // must match the notifications workflow\n\nconst q = $input.first().json.query || {};\nconst project = String(q.project || ''), version = String(q.version || ''), exp = String(q.exp || ''), sig = String(q.sig || '');\nconst wellFormed = /^\\d+$/.test(project) && /^\\d+$/.test(version) && /^\\d+$/.test(exp) && /^[0-9a-f]{64}$/.test(sig);\nlet ok = false;\nif (wellFormed && Number(exp) > Date.now() / 1000) {\n  const expected = crypto.createHmac('sha256', SECRET).update(`${project}:${version}:${exp}`).digest('hex');\n  ok = crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));\n}\nreturn [{ json: { ok, project_id: Number(project), plan_version: Number(version) } }];"
+      },
+      "id": "2b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d13",
+      "name": "Verify link",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2 },
+          "conditions": [
+            {
+              "id": "3c4d5e6f-7a8b-4c9d-8e0f-1a2b3c4d5e14",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4d5e6f7a-8b9c-4d0e-9f1a-2b3c4d5e6f15",
+      "name": "Link valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'http://host.docker.internal:8000/api/projects/' + $json.project_id + '/plan/approve' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ comment: 'Approved from n8n approval link', plan_version: $json.plan_version }) }}",
+        "options": { "response": { "response": { "fullResponse": true, "neverError": true } } }
+      },
+      "id": "5e6f7a8b-9c0d-4e1f-8a2b-3c4d5e6f7a16",
+      "name": "Approve plan in DevFlow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, -100]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.statusCode === 202 ? 'Plan approved. DevFlow is building the project.' : 'DevFlow did not approve the plan: ' + (($json.body && $json.body.detail) || ('HTTP ' + $json.statusCode)) }}",
+        "options": {}
+      },
+      "id": "6f7a8b9c-0d1e-4f2a-9b3c-4d5e6f7a8b17",
+      "name": "Show result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, -100]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "This approval link is invalid or has expired.",
+        "options": { "responseCode": 403 }
+      },
+      "id": "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c18",
+      "name": "Reject link",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 100]
+    }
+  ],
+  "connections": {
+    "Approval link opened": { "main": [[{ "node": "Verify link", "type": "main", "index": 0 }]] },
+    "Verify link": { "main": [[{ "node": "Link valid?", "type": "main", "index": 0 }]] },
+    "Link valid?": {
+      "main": [
+        [{ "node": "Approve plan in DevFlow", "type": "main", "index": 0 }],
+        [{ "node": "Reject link", "type": "main", "index": 0 }]
+      ]
+    },
+    "Approve plan in DevFlow": { "main": [[{ "node": "Show result", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

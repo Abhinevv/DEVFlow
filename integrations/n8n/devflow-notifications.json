@@ -1,0 +1,48 @@
+{
+  "name": "DevFlow - event notifications",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "devflow-events",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "0b9a3f1e-6d1c-4e7a-9a51-1f7d3c2b9e01",
+      "name": "DevFlow event",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "5d2f8c3a-7b4e-4f19-8c6d-2a9e1b7f4c10"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Turns DevFlow events into chat messages. Plan-ready events get a signed approval link\n// handled by the \"DevFlow - approve plan from link\" workflow.\nconst crypto = require('crypto');\nconst CONFIG = {\n  n8nUrl: 'http://localhost:5678',            // where your phone/browser can reach n8n\n  approvalLinkSecret: 'CHANGE-ME-link-secret', // must match the approval workflow\n  linkHours: 24,\n};\nconst ICONS = { plan_ready: '📝', workflow_halted: '⛔', safety_violation: '🚨', limit_reached: '💸', model_error: '⚠️', delivered: '✅', ping: '🔔' };\n\nconst out = [];\nfor (const item of $input.all()) {\n  const e = item.json.body ?? item.json;\n  if (!e || !e.event) continue;\n  const p = e.project;\n  const head = p ? `${p.name} (#${p.id})` : 'DevFlow';\n  let text = `${ICONS[e.event] ?? 'ℹ️'} ${head}\\n${e.event.replace(/_/g, ' ')}: ${e.message}`;\n  if (p) text += `\\nStatus: ${p.status}${p.status_reason ? ' — ' + p.status_reason : ''}\\n${e.links.dashboard}`;\n  if (e.event === 'plan_ready' && p) {\n    const exp = Math.floor(Date.now() / 1000) + CONFIG.linkHours * 3600;\n    const sig = crypto.createHmac('sha256', CONFIG.approvalLinkSecret).update(`${p.id}:${p.plan_version}:${exp}`).digest('hex');\n    text += `\\n\\nApprove plan v${p.plan_version}: ${CONFIG.n8nUrl}/webhook/devflow-approve?project=${p.id}&version=${p.plan_version}&exp=${exp}&sig=${sig}`;\n  }\n  out.push({ json: { text, event: e.event, project_id: p ? p.id : null } });\n}\nreturn out;"
+      },
+      "id": "7c1e2d4f-3a5b-4c6d-8e9f-0a1b2c3d4e02",
+      "name": "Format message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [260, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "REPLACE_WITH_YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "id": "9e8d7c6b-5a4f-4e3d-2c1b-0a9f8e7d6c03",
+      "name": "Send Telegram message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [520, 0]
+    }
+  ],
+  "connections": {
+    "DevFlow event": { "main": [[{ "node": "Format message", "type": "main", "index": 0 }]] },
+    "Format message": { "main": [[{ "node": "Send Telegram message", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

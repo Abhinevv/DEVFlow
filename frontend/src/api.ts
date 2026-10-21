@@ -47,6 +47,7 @@ export async function api<T>(path: string, options: { method?: string; body?: un
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
   await check(res);
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 

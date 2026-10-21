@@ -72,7 +72,9 @@ li + li { margin-top: 3px; }
   display: flex; align-items: center; gap: 16px; padding: 0 24px; height: 56px;
   background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
 }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 680; font-size: 15px; color: var(--text); }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 680; font-size: 15px; color: var(--text); white-space: nowrap; }
+.topbar .who, .topbar a, .topbar button { white-space: nowrap; }
+.sysbadges { flex-wrap: nowrap; }
 .brand:hover { text-decoration: none; }
 .brand-mark { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; color: var(--accent-text); font-size: 13px; }
 .topbar .spacer { flex: 1; }
@@ -235,7 +237,8 @@ details > summary { cursor: pointer; }
   .code-layout { grid-template-columns: 1fr; }
   .board { grid-template-columns: repeat(5, 220px); }
   .page { padding: 16px; }
-  .topbar { padding: 0 16px; }
+  .topbar { padding: 0 16px; gap: 12px; }
+  .sysbadges, .topbar .who { display: none !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   .badge.live .dot, .spinner { animation: none; }

@@ -102,6 +102,15 @@ Generated code and tool arguments are treated as untrusted.
 
 Containers alone do not make arbitrary untrusted code safe. For shared or production deployments, add host-level isolation such as gVisor or a dedicated VM.
 
+## Integrations (n8n and other automation)
+
+**Integrations** in the dashboard header manages two things:
+
+- **Webhooks:** DevFlow POSTs signed JSON events (`plan_ready`, `workflow_halted`, `delivered`, …) to URLs you configure. Each webhook has an event filter and optional auth headers. Deliveries are retried and logged.
+- **API keys:** long-lived `dfk_…` keys that automation tools use as `Authorization: Bearer dfk_…`. Only a hash is stored, and keys can be revoked.
+
+[integrations/n8n](integrations/n8n) has ready-to-import n8n workflows: Telegram notifications with a signed plan-approval link, approval through that link, and a form that creates projects. It also has the setup guide. `docker compose up -d n8n` starts n8n at http://localhost:5678.
+
 ## Evaluation
 
 ```powershell
@@ -116,7 +125,7 @@ With the mock provider only `notes_api` is meaningful; it produces multi-agent 6
 ## Tests
 
 ```powershell
-cd backend; .venv\Scripts\python -m pytest       # 55 tests: workspace policy, sandbox, parsing, security scan, auth, full workflows
+cd backend; .venv\Scripts\python -m pytest       # 61 tests: workspace policy, sandbox, parsing, security scan, auth, webhooks, full workflows
 cd frontend; npm run build                      # type-check and production build
 ```
 

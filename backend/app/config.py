@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     max_workflow_seconds: int = 3600
     max_safety_violations: int = 3
 
+    # Integrations (outbound webhooks, e.g. to n8n)
+    public_app_url: str = "http://localhost:5173"  # used for dashboard links in webhook payloads
+    webhook_poll_seconds: float = 1.0
+    webhook_timeout_seconds: float = 10.0
+    webhook_max_attempts: int = 3
+
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173"])
 
     @property

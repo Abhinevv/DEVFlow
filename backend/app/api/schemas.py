@@ -196,6 +196,8 @@ class ArtifactOut(ORM):
 
 class DecisionIn(BaseModel):
     comment: str | None = Field(default=None, max_length=4000)
+    # Approve only if the plan is still this version (guards approval links against revised plans).
+    plan_version: int | None = None
 
 
 class ReviseIn(BaseModel):

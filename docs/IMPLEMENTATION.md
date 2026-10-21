@@ -28,8 +28,11 @@ This document records what is implemented, what has been verified, and how a req
 | Delivery package | Implemented, tested | Zip with source, report, manifest |
 | Metrics (FR-18) | Implemented, tested | Per project and aggregated by mode |
 | Benchmark harness | Implemented, run with mock | 3 tasks with hidden acceptance tests |
-| React dashboard | Implemented, manually verified in browser | All 10 screens from spec §16 |
-| Automated tests | 55 backend tests pass; frontend type-checks and builds | No frontend unit tests |
+| React dashboard | Implemented, manually verified in browser | All 10 screens from spec §16, plus Integrations |
+| Outbound webhooks | Implemented, tested | Signed, filtered, retried, logged; used by n8n |
+| API keys | Implemented, tested | Hashed, revocable keys for automation |
+| n8n workflows | Written; see §16 for verification | Notifications, link approval, project form |
+| Automated tests | 61 backend tests pass; frontend type-checks and builds | No frontend unit tests |
 
 ---
 
@@ -512,7 +515,7 @@ With the mock provider only `notes_api` is meaningful. Last mock run: multi-agen
 
 ## 14. Verification performed
 
-- `pytest`: 55 tests pass — workspace policy (20 rejected and 6 accepted path cases), dependency policy, executor (pass/fail parsing, rerun by node id, syntax errors, no tests, timeout, secret scrubbing, tamper isolation), security scanner, strict schema, plan graph validation, timezone round-trip, auth, ownership, input validation, file-read confinement, and six full workflow runs through the API.
+- `pytest`: 61 tests pass — workspace policy (20 rejected and 6 accepted path cases), dependency policy, executor (pass/fail parsing, rerun by node id, syntax errors, no tests, timeout, secret scrubbing, tamper isolation), security scanner, strict schema, plan graph validation, timezone round-trip, auth, ownership, input validation, file-read confinement, and six full workflow runs through the API.
 - `ruff check`: clean.
 - `npm run build`: type-check and production build succeed.
 - Manual browser walkthrough: register → create → plan → approve → live progress → completed; Tests, Code history and Delivery screens checked.
@@ -534,3 +537,56 @@ With the mock provider only `notes_api` is meaningful. Last mock run: multi-agen
 | Real benchmark results | §18 | Harness ready; needs the Claude provider |
 | Frontend automated tests | §17 | None |
 | Host isolation beyond containers | §15 | Not implemented; documented recommendation |
+
+---
+
+## 16. Integrations (n8n)
+
+n8n is an integration layer around DevFlow, not a replacement for the orchestrator: every completion and safety decision stays in DevFlow.
+
+```mermaid
+sequenceDiagram
+    participant D as DevFlow
+    participant N as n8n
+    participant T as Telegram
+    actor U as User
+    D->>N: POST /webhook/devflow-events (plan_ready, signed, X-Webhook-Token)
+    N->>T: Message with signed approval link (expires in 24 h)
+    T-->>U: Notification
+    U->>N: Opens /webhook/devflow-approve?project&version&exp&sig
+    N->>N: Verify HMAC and expiry
+    N->>D: POST /api/projects/{id}/plan/approve {plan_version} (Bearer dfk_…)
+    D-->>N: 202 Accepted, or 409 if the plan was revised
+    N-->>U: "Plan approved"
+```
+
+**Webhooks** (`app/integrations/webhooks.py`)
+- A background thread follows `workflow_events` (poll every 1 s), so events written by the orchestrator and by the API are both delivered. History is not replayed after a restart.
+- Each delivery is a JSON POST with `X-DevFlow-Event`, `X-DevFlow-Delivery`, `X-DevFlow-Timestamp` and `X-DevFlow-Signature` (HMAC-SHA256 over `timestamp.body`), plus up to 5 custom headers for receivers such as n8n Header Auth.
+- Event filter per webhook (18 event types, or `*`).
+- Up to 3 attempts (0 s, 2 s, 8 s); 4xx other than 408/429 is not retried; "Send test" makes one attempt. Every delivery is stored in `webhook_deliveries` and shown in the UI.
+- Header values and the signing secret are never returned after creation.
+
+**API keys** (`app/security.py`, `app/api/integrations.py`)
+- Format `dfk_` + 43 random characters; only the SHA-256 hash is stored; `last_used_at` is tracked; revocation is immediate.
+- Accepted anywhere a login token is, with the same access as the owning user.
+
+**Plan-version guard:** `POST /plan/approve` accepts an optional `plan_version`; if the plan has since been revised the request fails with 409, so stale approval links cannot approve a different plan.
+
+**New endpoints**
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET / POST | `/api/api-keys` | List / create (key returned once) |
+| POST | `/api/api-keys/{id}/revoke` | Revoke |
+| GET | `/api/webhooks/events` | Event catalogue and defaults |
+| GET / POST | `/api/webhooks` | List / create (secret returned once) |
+| PATCH / DELETE | `/api/webhooks/{id}` | Enable, pause, change events / delete |
+| POST | `/api/webhooks/{id}/test` | Send a `ping` event |
+| GET | `/api/webhooks/{id}/deliveries` | Last 50 deliveries |
+
+**New tables:** `api_keys`, `webhooks`, `webhook_deliveries`.
+
+**n8n assets:** `integrations/n8n/` (three workflows and a setup guide) and an `n8n` service in `docker-compose.yml`.
+
+**Verified:** 6 backend tests (signature correctness, event filtering, custom headers, retry rules, key revocation, privacy, stale-version rejection) and the Integrations screen in the browser, including an unreachable-endpoint failure. All three workflows import into n8n 2.44.5 and export back with every node and connection intact. The two Code nodes were run outside n8n: a signed link is accepted, while tampered project or version, expired, forged and incomplete links are rejected. **Not verified:** the workflows running end to end inside a live n8n instance with real Telegram and DevFlow credentials.
