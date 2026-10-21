@@ -129,7 +129,7 @@ cd backend; .venv\Scripts\python -m pytest       # 61 tests: workspace policy, s
 cd frontend; npm run build                      # type-check and production build
 ```
 
-The workflow tests drive the real API, LangGraph graph, executor and pytest through every mock scenario: success with recovery, retry exhaustion → blocked → cancel, path traversal rejection, single-agent baseline, pause/resume without re-running completed tasks, and plan revise/reject.
+The workflow tests drive the real API, LangGraph graph, executor and pytest through every mock scenario: success with recovery, retry exhaustion → blocked → cancel, path traversal rejection, single-agent baseline, pause/resume without re-running completed tasks, and plan revise/reject..
 
 ## Requirements traceability
 
